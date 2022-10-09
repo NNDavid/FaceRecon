@@ -1,10 +1,24 @@
 #!/bin/bash
 
-: "${CMAKE_PREFIX_PATH:=""}"
+: "${QT6_DIR:=""}"
+: "${OPENCV_DIR:=""}"
 : "${CMAKE_BUILD_TYPE:="RelWithDebInfo"}"
-: "${GENERATOR:="Visual Studio 16 2019"}"
+: "${GENERATOR:="Visual Studio 17 2022"}"
 : "${MAIN_FOLDER:="$PWD"}"
 : "${BUILD_FOLDER:="$MAIN_FOLDER/build"}"
+
+if [[ "$QT6_DIR" == "" ]]; then
+	echo "Qt6 directory not specified!"
+    exit 1;
+fi
+
+
+if [[ "$OPENCV_DIR" == "" ]]; then
+	echo "OpenCV directory not specified!"
+    exit 1
+fi
+
+CMAKE_PREFIX_PATH="$QT6_DIR:$OPENCV_DIR"
 
 cmake \
 -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \

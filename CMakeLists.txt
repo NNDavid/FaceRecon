@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+find_package(OpenCV REQUIRED)
 
 
 add_executable(FaceRecon MainWindow.h MainWindow.cpp main.cpp)
-target_link_libraries(FaceRecon PRIVATE Qt6::Core Qt6::Widgets)
+target_link_libraries(FaceRecon PRIVATE Qt6::Core Qt6::Widgets ${OpenCV_LIBS})
