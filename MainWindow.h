@@ -1,12 +1,16 @@
 #pragma once
 #include <QMainWindow>
 #include <QLabel>
+#include <opencv2/videoio.hpp>
 
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 public:
 	explicit MainWindow(QWidget* parent = nullptr);
+private slots:
+	void showCamera();
 private:
-	QLabel* mainLabel;
+	QLabel* imageLabel;
+	cv::VideoCapture videoCapture;
 };
