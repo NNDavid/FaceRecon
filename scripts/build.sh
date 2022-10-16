@@ -1,7 +1,7 @@
 #!/bin/bash
 
 : "${QT6_DIR:=""}"
-: "${OPENCV_DIR:=""}"
+: "${CMAKE_TOOLCHAIN_FILE:=""}"
 : "${CMAKE_BUILD_TYPE:="RelWithDebInfo"}"
 : "${GENERATOR:="Visual Studio 17 2022"}"
 : "${MAIN_FOLDER:="$PWD"}"
@@ -12,17 +12,18 @@ if [[ "$QT6_DIR" == "" ]]; then
     exit 1;
 fi
 
-
-if [[ "$OPENCV_DIR" == "" ]]; then
-	echo "OpenCV directory not specified!"
-    exit 1
+if [[ "$CMAKE_TOOLCHAIN_FILE" == "" ]]; then
+	echo "CMAKE_TOOLCHAIN_FILE not provided!"
+    exit 1;
 fi
 
-CMAKE_PREFIX_PATH="$QT6_DIR:$OPENCV_DIR"
+CMAKE_PREFIX_PATH="$QT6_DIR"
 
 cmake \
 -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
 -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+-DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
+-DVCPKG_BUILD=ON \
 -B$BUILD_FOLDER \
 -G"$GENERATOR" -A x64
 
