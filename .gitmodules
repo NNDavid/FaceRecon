@@ -1,0 +1,3 @@
+[submodule "3rdparty/Crow"]
+	path = 3rdparty/Crow
+	url = https://github.com/CrowCpp/Crow.git
