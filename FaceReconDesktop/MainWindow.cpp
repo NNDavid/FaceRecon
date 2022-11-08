@@ -5,12 +5,12 @@
 #include <opencv2/imgproc.hpp>
 #include <stdexcept>
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this))
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), dnn("opencv_face_detector_uint8.pb", "opencv_face_detector.pbtxt")
 {
 	this->setCentralWidget(imageLabel);
 	try
 	{
-		videoCapture.open(1);
+		videoCapture.open(0);
 	}
 	catch (...)
 	{
@@ -27,6 +27,13 @@ void MainWindow::showCamera()
 	{
 		cv::Mat image;
 		videoCapture.read(image);
+		std::vector<NeuralNetwork::Output> faces;
+		dnn.evaluate(image, faces);
+		for(auto& face : faces)
+		{
+			cv::rectangle(image, face.p1, face.p2, cv::Scalar(0, 255, 0),2, 4);
+		}
+		//std::cout << image << std::endl;
 		cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 		imageLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(image.data), image.cols, image.rows, image.step, QImage::Format_RGB888)));
 	}

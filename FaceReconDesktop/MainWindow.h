@@ -1,4 +1,5 @@
 #pragma once
+#include "NeuralNetwork.h"
 #include <QMainWindow>
 #include <QLabel>
 #include <opencv2/videoio.hpp>
@@ -13,4 +14,5 @@ private slots:
 private:
 	QLabel* imageLabel;
 	cv::VideoCapture videoCapture;
+	NeuralNetwork dnn;
 };

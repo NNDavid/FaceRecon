@@ -5,7 +5,9 @@
         "asio",
         "openssl",
         "zlib",
-        "opencv",
+        "cuda",
+        "cudnn",
+        "opencv4",
         "boost"
     ]
 }
