@@ -1,4 +1,7 @@
 project(FaceReconServer)
 find_package(Crow)
+find_package(CURL)
+find_package(cpprestsdk REQUIRED)
+find_package(OpenCV REQUIRED)
 add_executable(FaceReconServer main.cpp)
-target_link_libraries(FaceReconServer PRIVATE Crow)
+target_link_libraries(FaceReconServer PRIVATE Crow CURL::libcurl cpprestsdk::cpprest opencv_ml opencv_dnn opencv_core opencv_flann)
