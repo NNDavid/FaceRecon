@@ -13,7 +13,7 @@
 </head>
 <html>
 <body>
-<form method="GET" action="/submit">
+<form method="POST" action="/submit">
     NAME: </br>
     <input type="text" name="name" value="" id="name" placeholder="Give your name" /></br>
     EMAIL: </br>

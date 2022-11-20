@@ -137,14 +137,11 @@ int main()
 	  //  cout <<test << endl;
 	}
 
-    CROW_ROUTE(app, "/s")
-		.methods("GET"_method, "POST"_method)
+    CROW_ROUTE(app, "/submit")
+		.methods("POST"_method)
         ([](const crow::request& req, crow::response& res) {
 		//CROW_LOG_INFO << "Params: " << req.url_params << "\n\n";
-		img = true;
-
-		cv::Mat testMat = str2mat(req.url_params.get("img"));
-
+		//img = true;
 	 	//CROW_LOG_INFO << "Params: " << req.url_params.get("img") << "\n\n";
 		//main(NULL,NULL);
 	    //Creating File

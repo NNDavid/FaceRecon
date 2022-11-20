@@ -6,6 +6,8 @@
         "openssl",
         "zlib",
         "opencv",
-        "boost"
+        "boost",
+        "cpprestsdk",
+        "curl"
     ]
 }
