@@ -11,7 +11,7 @@ NeuralNetwork::NeuralNetwork(const std::string& model_name, const std::string& c
 void NeuralNetwork::evaluate(const cv::Mat& input, /*output*/ std::vector<Output>& faceResult)
 {
 	faceResult.clear();
-	const auto meanVal = cv::Scalar(104, 117, 123);
+	static const auto meanVal = cv::Scalar(104, 117, 123);
 	const auto width = input.cols;
 	const auto height = input.rows;
 	const auto size = cv::Size(300, 300);
