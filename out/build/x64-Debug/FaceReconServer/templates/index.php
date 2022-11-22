@@ -13,13 +13,14 @@
 </head>
 <html>
 <body>
-<form method="POST" action="/submit">
+<form method="GET" action="/submit">
     NAME: </br>
     <input type="text" name="name" value="" id="name" placeholder="Give your name" /></br>
     EMAIL: </br>
     <input type="text" name="email" placeholder="Give your email" /></br>
     YOUR IMAGE: </br>
     <input type="file" name="img" id="img" placeholder="Give your image" /></br>
+    <input type="hidden" name="faceimg" id="faceimg" /></br>
     <button name="submit" value="Submit" onClick="formSub();"> 
     Submit
     </button>
@@ -29,10 +30,12 @@
 <script>
     
     var image_source = "";
-function formSub(){
-    let image_input = document.querySelector("#name");
-      image_input.value = image_source;
-}
+
+    function formSub(){
+        let image_input = document.querySelector("#faceimg");
+        image_input.value = image_source;
+    }
+
    let image_input = document.querySelector("#img");
     console.log(image_input);
     image_input.addEventListener("change", function() {

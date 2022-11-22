@@ -2,50 +2,26 @@
 #include <crow/utility.h>
 #include <filesystem>
 #include <curl/curl.h>
-#include <cpprest/json.h>
-#include <cpprest/http_client.h>
-#include <cpprest/filestream.h>
-#include<direct.h>
-#include <iostream>
-#include <fstream>
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
-
-#include <vector>
+#include <direct.h>
 #include <string>
 
 using namespace std;
 using namespace cv;
-using namespace utility;
-using namespace web;
-using namespace web::http;
-using namespace web::http::client;
-using namespace concurrency::streams;
-//#include <../../../FaceReconDesktop/main.cpp>
 
-static string readBuffer;
-static 	bool img = false;
-//https://stackoverflow.com/questions/39800992/cannot-listen-on-specific-port-num-with-localhost-address-with-http-listenerc
-
-static const string base64_chars =
-"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-"abcdefghijklmnopqrstuvwxyz"
-"0123456789+/";
-
+// Callback function for the curl result
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-	//cout<< " " << size << " " << nmemb  << endl;
 	((string*)userp)->append((char*)contents, size * nmemb);
 	return size * nmemb;
 }
 
+// Check if it is a real base64 code
 static inline bool is_base64(unsigned char c)
 {
 	return (isalnum(c) || (c == '+') || (c == '/'));
 }
-
-
 
 string base64_decode(string const& encoded_string)
 {
@@ -54,7 +30,11 @@ string base64_decode(string const& encoded_string)
 	int j = 0;
 	int in_ = 0;
 	unsigned char char_array_4[4], char_array_3[3];
-	std::string ret;
+	string ret;
+    const string base64_chars =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789+/";
 
 	while (in_len-- && (encoded_string[in_] != '=') && is_base64(encoded_string[in_]))
 	{
@@ -106,25 +86,24 @@ string base64_decode(string const& encoded_string)
 }
 
 
-cv::Mat str2mat(const string& s)
+cv::Mat str2mat(const std::string& s)
 {
 	// Decode data
 	string decoded_string = base64_decode(s);
 	vector<uchar> data(decoded_string.begin(), decoded_string.end());
 
 	cv::Mat img = imdecode(data, IMREAD_UNCHANGED);
-	return cv::Mat();
+	// Check if the mat image is the same as base64
+	imshow("Image", img);
+	waitKey();
+	return img;
 }
 
-int main()
+void getData() 
 {
-	crow::SimpleApp app;
-	crow::mustache::set_base("/");
 	CURL* curl;
 	CURLcode res;
 	string readBuffer;
-	http_client client(U("http://localhost:18080/"));
-	http_request req(methods::GET);
 
 	curl = curl_easy_init();
 	if (curl) {
@@ -134,70 +113,72 @@ int main()
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		auto test = crow::json::load(readBuffer.substr(3, readBuffer.size()));
-	  //  cout <<test << endl;
+	}
+}
+
+void insertData()
+{
+	CURL* curl;
+	static string readBuffer;
+	static CURLcode result;
+
+	curl = curl_easy_init();
+	string test = "'proba'";
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values='gre','dsa.com'," + test);
+		result = curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+	}
+	curl_global_cleanup();
+}
+
+void createFolderandMatFile(cv::Mat& imgMat)
+{
+	// Testing the folder and file creation
+	auto ret2 = filesystem::create_directories("FaceRecMatResults");
+	if (ret2) {
+		cout << "created directory tree as follows: " << endl;
+	}
+	else {
+		cout << "create_directories() failed" << endl;
 	}
 
-    CROW_ROUTE(app, "/submit")
-		.methods("POST"_method)
-        ([](const crow::request& req, crow::response& res) {
-		//CROW_LOG_INFO << "Params: " << req.url_params << "\n\n";
-		//img = true;
-	 	//CROW_LOG_INFO << "Params: " << req.url_params.get("img") << "\n\n";
-		//main(NULL,NULL);
-	    //Creating File
-	/*	if (mkdir("E:/MyFolder") == -1)
-			cerr << " Error : " << strerror(errno) << endl;
+	// Creating File
+	cv::imwrite("FaceRecMatResults/test.bmp", imgMat);
+}
 
-		else
-			cout << "File Created";
+int main()
+{
+	crow::SimpleApp app;
 
-		ofstream MyFile("filename.txt");
 
-		// Write to the file
-		MyFile << "Files can be tricky, but it is fun enough!";
+	CROW_ROUTE(app, "/submit")
+		.methods("GET"_method)
+		([](const crow::request& req, crow::response& res) {
 
-		// Close the file
-		MyFile.close();*/
+		// Get the image from the request params
+		string base64 = req.url_params.get("faceimg");
+
+		// Take out the unecessary part
+		base64 = base64.substr(base64.find_first_of(",") + 1);
+		
+		// Encode from base64 to mat
+		cv::Mat imgMat = str2mat(base64);
+
+		// Save the mat to the given folder
+		createFolderandMatFile(imgMat);
+
+		// Response to the website
 		res.write("Sent image!");
 		res.end();
-    });
+		});
 
 	CROW_ROUTE(app, "/")([] {
 		CROW_LOG_INFO << filesystem::current_path() << "\n\n";
 		return crow::mustache::load("index.php").render();
-	});
-	
+		});
+
 	app.port(18080)
 		.multithreaded()
 		.run();
-
-	/* In windows, this will init the winsock stuff */
-	curl_global_init(CURL_GLOBAL_ALL);
-
-	/* get a curl handle */
-	curl = curl_easy_init();
-	if (curl) {
-		/* First set the URL that is about to receive our POST. This URL can
-		   just as well be a https:// URL if that is what should receive the
-		   data. */
-		curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:18080/");
-		/* Now specify the POST data */
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "name=daniel&project=curl");
-
-		/* Perform the request, res will get the return code */
-		res = curl_easy_perform(curl);
-		/* Check for errors */
-		if (res != CURLE_OK)
-			fprintf(stderr, "curl_easy_perform() failed: %s\n",
-				curl_easy_strerror(res));
-
-		/* always cleanup */
-		curl_easy_cleanup(curl);
-	}
-	curl_global_cleanup();
-
-
-	// sync request
-	auto resp = client.request(req).get();
-	cout << resp.status_code() << " : sync request" << endl;
 }
