@@ -1,6 +1,8 @@
 #pragma once
+#include "NeuralNetwork.h"
 #include <QMainWindow>
 #include <QLabel>
+#include <QStatusBar>
 #include <opencv2/videoio.hpp>
 
 class MainWindow : public QMainWindow
@@ -12,5 +14,8 @@ private slots:
 	void showCamera();
 private:
 	QLabel* imageLabel;
+	QLabel* statusLabel;
+	QLabel* faceLabel;
 	cv::VideoCapture videoCapture;
+	NeuralNetwork dnn;
 };
