@@ -50,6 +50,7 @@ void MainWindow::showCamera()
 			const auto y_length = std::min(std::abs(face.p2.y - face.p1.y), image.rows - y_min);
 
 			auto cropped_img = image(cv::Rect(x_min, y_min, x_length, y_length));
+			cv::resize(cropped_img, cropped_img, cv::Size(256, 256), 0, 0);
 			faceLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(cropped_img.data), cropped_img.cols, cropped_img.rows, cropped_img.step, QImage::Format_RGB888)));
 			statusLabel->setText("Face found!");
 		}

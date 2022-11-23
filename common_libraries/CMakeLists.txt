@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.22)
+project(common_libraries)
+
+find_package(OpenCV REQUIRED)
+find_package(CUDNN REQUIRED)
+
+set(SOURCES src/NeuralNetwork.cpp)
+
+add_library(${PROJECT_NAME} ${SOURCES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenCV_LIBS} CuDNN::CuDNN)
