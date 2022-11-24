@@ -7,7 +7,6 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <direct.h>
-#include <string>
 
 // Callback function for the curl result
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
@@ -15,6 +14,14 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 	return size * nmemb;
 }
 
+/*
+	UpdateData()
+	Code format
+	Theadsafe
+	Data -> cv::mat feature needs to be added
+	insertdata check if already inserted
+	check file is already created
+*/
 void getData() 
 {
 	CURL* curl;
@@ -32,23 +39,29 @@ void getData()
 	}
 }
 
-void insertData()
+void insertData(std::string& name, std::string& email, std::string& path)
 {
 	CURL* curl;
-	static std::string readBuffer;
-	static CURLcode result;
-
+	std::string readBuffer;
+	CURLcode result;
+	/* In windows, this will init the winsock stuff */
+	curl_global_init(CURL_GLOBAL_ALL);
+	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values=" + name + ',' + email + ',' + path;
+	url.erase(std::remove_if(url.begin(), url.end(), ' '), url.end());
 	curl = curl_easy_init();
-	std::string test = "'proba'";
 	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_URL, "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values='gre','dsa.com'," + test);
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		result = curl_easy_perform(curl);
+		if (result != CURLE_OK)
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+				curl_easy_strerror(result));
 		curl_easy_cleanup(curl);
 	}
 	curl_global_cleanup();
 }
 
-void createFolderandMatFile(cv::Mat& imgMat)
+
+void createFolderandMatFile(cv::Mat& imgMat, std::string& path)
 {
 	// Testing the folder and file creation
 	auto ret2 = std::filesystem::create_directories("FaceRecMatResults");
@@ -60,20 +73,22 @@ void createFolderandMatFile(cv::Mat& imgMat)
 	}
 
 	// Creating File
-	cv::imwrite("FaceRecMatResults/test.bmp", imgMat);
+	cv::imwrite("FaceRecMatResults/" + path + ".bmp", imgMat);
 }
 
 int main()
 {
 	crow::SimpleApp app;
 
-
 	CROW_ROUTE(app, "/submit")
 		.methods("GET"_method)
 		([](const crow::request& req, crow::response& res) {
 
 		// Get the image from the request params
-		std::string base64 = req.url_params.get("faceimg");
+		std::string base64 =  req.url_params.get("faceimg");
+		std::string name = req.url_params.get("name");
+		std::string email = req.url_params.get("email");
+		std::string path = req.url_params.get("imgPath");
 
 		// Take out the unecessary part
 		base64 = base64.substr(base64.find_first_of(",") + 1);
@@ -82,17 +97,20 @@ int main()
 		cv::Mat imgMat = base64_utilities::str2mat(base64);
 
 		// Save the mat to the given folder
-		createFolderandMatFile(imgMat);
+		createFolderandMatFile(imgMat, path);
+
+		// Insert to the database
+		insertData("\'" + name + "\'","\'" + email + "\'","\'" + path + "\'");
 
 		// Response to the website
 		res.write("Sent image!");
 		res.end();
-		});
+	});
 
 	CROW_ROUTE(app, "/")([] {
 		CROW_LOG_INFO << std::filesystem::current_path() << "\n\n";
 		return crow::mustache::load("index.php").render();
-		});
+	});
 
 	app.port(18080)
 		.multithreaded()
