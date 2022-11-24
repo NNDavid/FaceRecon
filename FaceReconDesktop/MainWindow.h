@@ -1,9 +1,10 @@
 #pragma once
-#include "NeuralNetwork.h"
+#include "FaceImageEvaluator.h"
 #include <QMainWindow>
 #include <QLabel>
 #include <QStatusBar>
 #include <opencv2/videoio.hpp>
+#include <opencv2/objdetect.hpp>
 
 class MainWindow : public QMainWindow
 {
@@ -17,5 +18,5 @@ private:
 	QLabel* statusLabel;
 	QLabel* faceLabel;
 	cv::VideoCapture videoCapture;
-	NeuralNetwork dnn;
+	FaceImageEvaluator evaluator;
 };

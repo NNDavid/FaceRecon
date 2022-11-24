@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 
-ServerBackend::ServerBackend(const int refreshTime): dnn("opencv_face_detector_uint8.pb", "opencv_face_detector.pbtxt")
+ServerBackend::ServerBackend(const int refreshTime): evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx")
 {
 	std::thread refresh_thread(&ServerBackend::refreshData, this, refreshTime);
 	refresh_thread.detach();
@@ -32,28 +32,20 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 		
 	// Encode from base64 to mat
 	cv::Mat image = base64_utilities::str2mat(base64);
-	std::vector<ThreadSafeNeuralNetwork::Output> faces;
-	dnn.evaluate(image, faces);
-	if(faces.size() == 0)
+	cv::Mat faces;
+	evaluator.findFaces(image, faces);
+	if(faces.rows == 0)
 	{
 		res.write("There are no faces on the picture");
 	}
-	else if(faces.size() > 1)
+	else if(faces.rows > 1)
 	{
 		res.write("There are too many faces on the picture!");
 	}
 	else
 	{
-		const auto face = faces.front();
-
-		const auto x_min = std::max(std::min(face.p1.x, face.p2.x), 0);
-		const auto x_length = std::min(std::abs(face.p2.x - face.p1.x), image.cols - x_min);
-
-		const auto y_min = std::max(std::min(face.p1.y, face.p2.y), 0);
-		const auto y_length = std::min(std::abs(face.p2.y - face.p1.y), image.rows - y_min);
-
-		auto cropped_img = image(cv::Rect(x_min, y_min, x_length, y_length));
-		cv::resize(cropped_img, cropped_img, cv::Size(256, 256), 0, 0);
+		cv::Mat cropped_img;
+		evaluator.alignCrop(image, faces.row(0), cropped_img);
 		boost::shared_lock<boost::shared_mutex> db_lock(db_mutex);
 		// TODO: compare with database
 		db_lock.unlock();
