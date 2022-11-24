@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), dnn("opencv_face_detector_uint8.pb", "opencv_face_detector.pbtxt")
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx")
 {
 	this->setCentralWidget(imageLabel);
 	try
@@ -33,24 +33,16 @@ void MainWindow::showCamera()
 		cv::Mat image;
 		videoCapture.read(image);
 		cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-		std::vector<NeuralNetwork::Output> faces;
-		dnn.evaluate(image, faces);
-		if (faces.size() == 0)
+		cv::Mat faces;
+		evaluator.findFaces(image, faces);
+		if (faces.rows == 0)
 		{
 			statusLabel->setText("There are no faces in the picture!");
 		}
-		else if (faces.size() == 1)
+		else if (faces.rows == 1)
 		{
-			const auto face = faces.front();
-
-			const auto x_min = std::max(std::min(face.p1.x, face.p2.x), 0);
-			const auto x_length = std::min(std::abs(face.p2.x - face.p1.x), image.cols - x_min);
-
-			const auto y_min = std::max(std::min(face.p1.y, face.p2.y), 0);
-			const auto y_length = std::min(std::abs(face.p2.y - face.p1.y), image.rows - y_min);
-
-			auto cropped_img = image(cv::Rect(x_min, y_min, x_length, y_length));
-			cv::resize(cropped_img, cropped_img, cv::Size(256, 256), 0, 0);
+			cv::Mat cropped_img;
+			evaluator.alignCrop(image, faces.row(0), cropped_img);
 			faceLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(cropped_img.data), cropped_img.cols, cropped_img.rows, cropped_img.step, QImage::Format_RGB888)));
 			statusLabel->setText("Face found!");
 		}
@@ -58,9 +50,9 @@ void MainWindow::showCamera()
 		{
 			statusLabel->setText("There are too many faces in the picture!");
 		}
-		for (auto& face : faces)
+		for (int i = 0; i < faces.rows; i++)
 		{
-			cv::rectangle(image, face.p1, face.p2, cv::Scalar(0, 255, 0), 2, 4);
+			cv::rectangle(image, cv::Rect2i(int(faces.at<float>(i, 0)), int(faces.at<float>(i, 1)), int(faces.at<float>(i, 2)), int(faces.at<float>(i, 3))), cv::Scalar(0, 255, 0), 2);
 		}
 		imageLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(image.data), image.cols, image.rows, image.step, QImage::Format_RGB888)));
 	}

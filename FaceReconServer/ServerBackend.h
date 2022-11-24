@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ThreadSafeNeuralNetwork.h"
+#include "ThreadSafeFaceImageEvaluator.h"
 #include <boost/thread/locks.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <mutex>
@@ -15,7 +15,7 @@ public:
 	void enter(const crow::request& req, crow::response& res);
 private:
 	void refreshData(const int refreshTime);
-	ThreadSafeNeuralNetwork dnn;
+	ThreadSafeFaceImageEvaluator evaluator;
 	std::mutex curl_mutex;
 	boost::shared_mutex db_mutex;
 };
