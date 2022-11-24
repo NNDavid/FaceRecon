@@ -19,4 +19,5 @@ private:
 	QLabel* faceLabel;
 	cv::VideoCapture videoCapture;
 	FaceImageEvaluator evaluator;
+	size_t counter;
 };

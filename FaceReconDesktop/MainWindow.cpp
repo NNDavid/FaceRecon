@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx")
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx"), counter(0)
 {
 	this->setCentralWidget(imageLabel);
 	try
@@ -38,16 +38,24 @@ void MainWindow::showCamera()
 		if (faces.rows == 0)
 		{
 			statusLabel->setText("There are no faces in the picture!");
+			counter = 0;
 		}
 		else if (faces.rows == 1)
 		{
+			++counter;
 			cv::Mat cropped_img;
 			evaluator.alignCrop(image, faces.row(0), cropped_img);
 			faceLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(cropped_img.data), cropped_img.cols, cropped_img.rows, cropped_img.step, QImage::Format_RGB888)));
 			statusLabel->setText("Face found!");
+			if (counter > 50)
+			{
+				//TODO send cropped_image to server
+				statusLabel->setText("Face is getting sent!!");
+			}
 		}
 		else
 		{
+			counter = 0;
 			statusLabel->setText("There are too many faces in the picture!");
 		}
 		for (int i = 0; i < faces.rows; i++)
