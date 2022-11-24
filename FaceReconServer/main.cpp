@@ -7,6 +7,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <direct.h>
+#include <algorithm>
 
 // Callback function for the curl result
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
@@ -47,7 +48,7 @@ void insertData(std::string& name, std::string& email, std::string& path)
 	/* In windows, this will init the winsock stuff */
 	curl_global_init(CURL_GLOBAL_ALL);
 	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values=" + name + ',' + email + ',' + path;
-	url.erase(std::remove_if(url.begin(), url.end(), ' '), url.end());
+	url.erase(std::remove_if(url.begin(), url.end(), [](unsigned char x) {return std::isspace(x); }), url.end());
 	curl = curl_easy_init();
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
