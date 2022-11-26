@@ -14,15 +14,17 @@
 class ServerBackend
 {
 public:
-	ServerBackend(const int refreshTime);
+	ServerBackend();
 	~ServerBackend();
 	void init();
 	void reg(const crow::request& req, crow::response& res);
 	void enter(const crow::request& req, crow::response& res);
 private:
+	void insertDatabaseData(crow::json::rvalue& response, std::string& name, std::string& email, std::string& path);
+	void updateDatabaseData(crow::json::rvalue& response, std::string& id);
 	void updateLocalDatabase(const crow::json::rvalue& response);
-	std::pair<size_t, double> compareImgWithDatabase(const cv::Mat& image);
 	bool getDatabaseData(crow::json::rvalue& response);
+	std::pair<size_t, double> compareImgWithDatabase(const cv::Mat& image);
 	CURL* curl;
 	ThreadSafeFaceImageEvaluator evaluator;
 	std::vector<Data> local_db;

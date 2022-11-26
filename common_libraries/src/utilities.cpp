@@ -1,11 +1,28 @@
 #include "utilities.h"
 #include <opencv2/imgcodecs.hpp>
 #include <vector>
+#include <filesystem>
+#include <iostream>
 
 
  bool base64_utilities::is_base64(unsigned char c)
  {
  	return (std::isalnum(c) || (c == '+') || (c == '/'));
+ }
+
+ void createFolderandMatFile(cv::Mat& imgMat, std::string& path)
+ {
+	 // Testing the folder and file creation
+	 auto ret2 = std::filesystem::create_directories("FaceRecMatResults");
+	 if (ret2) {
+		 std::cout << "created directory tree as follows: " << std::endl;
+	 }
+	 else {
+		 std::cout << "create_directories() failed" << std::endl;
+	 }
+
+	 // Creating File
+	 cv::imwrite("FaceRecMatResults/" + path + ".bmp", imgMat);
  }
  
  std::string base64_utilities::base64_decode(const std::string& encoded_string)

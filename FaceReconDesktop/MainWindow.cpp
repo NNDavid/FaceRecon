@@ -30,6 +30,7 @@ void MainWindow::showCamera()
 {
 	if (videoCapture.isOpened())
 	{
+		//CURL* curl;
 		cv::Mat image;
 		videoCapture.read(image);
 		cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
@@ -49,8 +50,25 @@ void MainWindow::showCamera()
 			statusLabel->setText("Face found!");
 			if (counter > 50)
 			{
-				//TODO send cropped_image to server
-				statusLabel->setText("Face is getting sent!!");
+				//std::unique_lock<std::mutex> lock(curl_mutex);
+		/*		std::string readBuffer;
+				CURLcode result;
+				// Encode from base64 to mat
+				//cv::Mat base64Img = base64_utilities::str2mat(cropped_img);
+				std::string url = "http://localhost:18080/send?faceimg=";//+ base64Img;
+				if (curl) {
+					curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+				    auto result = curl_easy_perform(curl);
+					//lock.unlock();
+					if (result != CURLE_OK)
+						fprintf(stderr, "curl_easy_perform() failed: %s\n",
+							curl_easy_strerror(result));
+					curl_easy_cleanup(curl);
+				}
+				else {
+					//lock.unlock();
+				}*/
+				statusLabel->setText("Face image has been sent!!");
 			}
 		}
 		else

@@ -9,7 +9,7 @@ class base64_utilities
 public:
 	static cv::Mat str2mat(const std::string& s);
 	static std::string mat2str(const cv::Mat& img);
-
+	void createFolderandMatFile(cv::Mat& imgMat, std::string& path);
 private:
 	static bool is_base64(unsigned char c);
 	static std::string base64_decode(const std::string& encoded_string);

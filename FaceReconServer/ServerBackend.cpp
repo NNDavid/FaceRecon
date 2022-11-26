@@ -10,9 +10,9 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 	return size * nmemb;
 }
 
-ServerBackend::ServerBackend(const int refreshTime): evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx")
+ServerBackend::ServerBackend(): evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx")
 {
-	
+
 }
 ServerBackend::~ServerBackend()
 {
@@ -37,6 +37,7 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 	// Encode from base64 to mat
 	cv::Mat image = base64_utilities::str2mat(base64);
 	cv::Mat faces;
+
 	evaluator.findFaces(image, faces);
 	if(faces.rows == 0)
 	{
@@ -59,8 +60,27 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 		else
 		{
 			boost::upgrade_to_unique_lock unique_db_lock(db_lock);
-			//TODO insert to server (save picture!)
-			//TODO push_back to local_db
+
+		
+		   // Save the mat to the given folder
+			createFolderandMatFile(image, path);
+	
+			std::string name = req.url_params.get("name");
+			std::string email = req.url_params.get("email");
+			std::string path = req.url_params.get("imgPath");
+
+			Data newData = {
+				local_db.size()+1,
+				name,
+				email,
+				path
+			}	
+			// save to local_db
+			local_db.push_back(newData);
+
+			// Insert to the database
+			insertDatabaseData(res, "\'" + name + "\'", "\'" + email + "\'", "\'" + path + "\'");
+
 			res.write("You have registered successfully!");
 		}
 	}
@@ -89,7 +109,8 @@ void ServerBackend::enter(const crow::request& req, crow::response& res)
 		{
 			local_db[best_person.second].registered = true;
 			res.write(" You are " + local_db[best_person.second].name + "! You may enter!");
-			//TODO modify database in cloud
+			
+			updateDatabaseData(res, local_db[best_person.second].id);
 		}
 	}
 	else
@@ -101,7 +122,8 @@ void ServerBackend::enter(const crow::request& req, crow::response& res)
 
 bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 {
-	std::unique_lock<std::mutex> lock(curl_mutex);
+	curl = curl_easy_init();
+	//std::unique_lock<std::mutex> lock(curl_mutex);
 	if (curl)
 		{
 			CURLcode res;
@@ -109,8 +131,8 @@ bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 			curl_easy_setopt(curl, CURLOPT_URL, "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=get&select=pic");
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-			const auto result = curl_easy_perform(curl);
-			lock.unlock();
+			res = curl_easy_perform(curl);
+		//	lock.unlock();
 			if ( res != CURLE_OK)
 			{
 				std::cerr << "Could not reach database!" << std::endl;
@@ -118,12 +140,13 @@ bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 			}
 			else
 			{
+				// need to substring to eliminate unecessary parts
 				response = crow::json::load(readBuffer.substr(3, readBuffer.size()));
 			}
 		}
 		else
 		{
-			lock.unlock();
+		//	lock.unlock();
 			std::cerr << "Curl does not exist!" << std::endl;
 			return false;
 		}
@@ -133,15 +156,58 @@ bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 void ServerBackend::updateLocalDatabase(const crow::json::rvalue& response)
 {
 	local_db.resize(response.size());
-	for(size_t i = 0; i < response.size(); i++)
+	for (size_t i = 0; i < response.size(); i++)
 	{
 		const auto data = response[i];
 		//local_db[i] = Data(data["name"], data["email"], data["pic"], data["registered"]);
 		cv::Mat image = cv::imread(local_db[i].file_path);
-		evaluator.evaluateFeature(image ,local_db[i].feature);
+		evaluator.evaluateFeature(image, local_db[i].feature);
 	}
 }
 
+void ServerBackend::updateDatabaseData(crow::json::rvalue& response, std::string& id)
+{
+	std::unique_lock<std::mutex> lock(curl_mutex);
+	std::string readBuffer;
+	CURLcode result;
+	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=put&select=is_registered=0&where=id=" + id;
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		const auto result = curl_easy_perform(curl);
+		lock.unlock();
+		if (result != CURLE_OK)
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+				curl_easy_strerror(result));
+		curl_easy_cleanup(curl);
+	}
+	else {
+		lock.unlock();
+	}
+	
+}
+
+void ServerBackend::insertDatabaseData(crow::json::rvalue& response, std::string& name, std::string& email, std::string& path)
+{
+	std::unique_lock<std::mutex> lock(curl_mutex);
+	CURL* curl;
+	std::string readBuffer;
+	CURLcode result;
+	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values=" + name + ',' + email + ',' + path;
+	url.erase(std::remove_if(url.begin(), url.end(), [](unsigned char x) {return std::isspace(x); }), url.end());
+	curl = curl_easy_init();
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+		result = curl_easy_perform(curl);
+		lock.unlock();
+		if (result != CURLE_OK)
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+				curl_easy_strerror(result));
+		curl_easy_cleanup(curl);
+	}
+	else {
+		lock.unlock();
+	}
+}
 std::pair<size_t, double> ServerBackend::compareImgWithDatabase(const cv::Mat& feature)
 {
 	size_t index = 0;
