@@ -20,10 +20,11 @@ public:
 	void reg(const crow::request& req, crow::response& res);
 	void enter(const crow::request& req, crow::response& res);
 private:
-	void insertDatabaseData(crow::json::rvalue& response, std::string& name, std::string& email, std::string& path);
-	void updateDatabaseData(crow::json::rvalue& response, std::string& id);
+	bool insertDatabaseData(const Data& data);
+	void updateDatabaseData(const size_t id);
 	void updateLocalDatabase(const crow::json::rvalue& response);
 	bool getDatabaseData(crow::json::rvalue& response);
+	static inline std::string DataToString(const Data& data);
 	std::pair<size_t, double> compareImgWithDatabase(const cv::Mat& image);
 	CURL* curl;
 	ThreadSafeFaceImageEvaluator evaluator;

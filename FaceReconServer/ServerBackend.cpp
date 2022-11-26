@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
 	((std::string*)userp)->append((char*)contents, size * nmemb);
@@ -52,8 +53,10 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 		cv::Mat cropped_img;
 		evaluator.alignCrop(image, faces.row(0), cropped_img);
 		boost::upgrade_lock<boost::shared_mutex> db_lock(db_mutex);
-		const auto best_person = this->compareImgWithDatabase(cropped_img);
-		if(best_person.second > 0.8)
+		cv::Mat feature;
+		evaluator.evaluateFeature(cropped_img, feature);
+		const auto best_person = this->compareImgWithDatabase(feature);
+		if(best_person.second > 0.363)
 		{
 			res.write("You have already registered!");
 		}
@@ -61,29 +64,34 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 		{
 			boost::upgrade_to_unique_lock unique_db_lock(db_lock);
 
-		
-		   // Save the mat to the given folder
-			createFolderandMatFile(image, path);
-	
 			std::string name = req.url_params.get("name");
 			std::string email = req.url_params.get("email");
-			std::string path = req.url_params.get("imgPath");
+			auto name_tmp = name;
+			name_tmp.erase(std::remove(name_tmp.begin(), name_tmp.end(), ' '), name_tmp.end());
+			const auto path = name_tmp + std::to_string(static_cast<int>(best_person.second * 100.0)) + ".jpg";
+		
+		   // Save the mat to the given folder
+			base64_utilities::createFolderandMatFileconst(cropped_img, path);
+	
+			
 
-			Data newData = {
-				local_db.size()+1,
-				name,
-				email,
-				path
-			}	
+			Data newData(local_db.size() + 1, name, email, path, false, feature);
 			// save to local_db
-			local_db.push_back(newData);
 
 			// Insert to the database
-			insertDatabaseData(res, "\'" + name + "\'", "\'" + email + "\'", "\'" + path + "\'");
-
-			res.write("You have registered successfully!");
+			const auto successful = insertDatabaseData(newData);
+			if (successful)
+			{
+				local_db.push_back(newData);
+				res.write("You have registered successfully!");
+			}
+			else
+			{
+				res.write("Unsuccessfull registration!");
+			}
 		}
 	}
+	res.end();
 }
 
 void ServerBackend::enter(const crow::request& req, crow::response& res)
@@ -110,7 +118,7 @@ void ServerBackend::enter(const crow::request& req, crow::response& res)
 			local_db[best_person.second].registered = true;
 			res.write(" You are " + local_db[best_person.second].name + "! You may enter!");
 			
-			updateDatabaseData(res, local_db[best_person.second].id);
+			updateDatabaseData(local_db[best_person.second].id);
 		}
 	}
 	else
@@ -123,16 +131,14 @@ void ServerBackend::enter(const crow::request& req, crow::response& res)
 bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 {
 	curl = curl_easy_init();
-	//std::unique_lock<std::mutex> lock(curl_mutex);
 	if (curl)
 		{
 			CURLcode res;
 			std::string readBuffer;
-			curl_easy_setopt(curl, CURLOPT_URL, "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=get&select=pic");
+			curl_easy_setopt(curl, CURLOPT_URL, "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=get&select=id,name,email,pic,is_registered");
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
 			res = curl_easy_perform(curl);
-		//	lock.unlock();
 			if ( res != CURLE_OK)
 			{
 				std::cerr << "Could not reach database!" << std::endl;
@@ -146,7 +152,7 @@ bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 		}
 		else
 		{
-		//	lock.unlock();
+
 			std::cerr << "Curl does not exist!" << std::endl;
 			return false;
 		}
@@ -155,22 +161,24 @@ bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 
 void ServerBackend::updateLocalDatabase(const crow::json::rvalue& response)
 {
-	local_db.resize(response.size());
-	for (size_t i = 0; i < response.size(); i++)
+	const auto items = response["data"];
+	local_db.resize(items.size());
+	for (size_t i = 0; i < local_db.size(); i++)
 	{
-		const auto data = response[i];
-		//local_db[i] = Data(data["name"], data["email"], data["pic"], data["registered"]);
-		cv::Mat image = cv::imread(local_db[i].file_path);
+		const auto data = items[i];
+		std::cout << "new_item  = " << data << std::endl;
+		local_db[i] = Data(data["id"].u(), std::string(data["name"].s()), std::string(data["email"].s()), std::string(data["pic"].s()), data["is_registered"].u() == 1);
+		cv::Mat image = cv::imread("FaceRecMatResults/" +  local_db[i].file_path);
 		evaluator.evaluateFeature(image, local_db[i].feature);
 	}
 }
 
-void ServerBackend::updateDatabaseData(crow::json::rvalue& response, std::string& id)
+void ServerBackend::updateDatabaseData(const size_t id)
 {
 	std::unique_lock<std::mutex> lock(curl_mutex);
 	std::string readBuffer;
 	CURLcode result;
-	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=put&select=is_registered=0&where=id=" + id;
+	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=put&select=is_registered=0&where=id=" + std::to_string(id);
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		const auto result = curl_easy_perform(curl);
@@ -186,37 +194,39 @@ void ServerBackend::updateDatabaseData(crow::json::rvalue& response, std::string
 	
 }
 
-void ServerBackend::insertDatabaseData(crow::json::rvalue& response, std::string& name, std::string& email, std::string& path)
+bool ServerBackend::insertDatabaseData(const Data& data)
 {
 	std::unique_lock<std::mutex> lock(curl_mutex);
-	CURL* curl;
 	std::string readBuffer;
 	CURLcode result;
-	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values=" + name + ',' + email + ',' + path;
-	url.erase(std::remove_if(url.begin(), url.end(), [](unsigned char x) {return std::isspace(x); }), url.end());
+	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=post&select=name,email,pic&values=" + ServerBackend::DataToString(data);
+	url.erase(std::remove(url.begin(), url.end(),' '), url.end());
 	curl = curl_easy_init();
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		result = curl_easy_perform(curl);
 		lock.unlock();
-		if (result != CURLE_OK)
-			fprintf(stderr, "curl_easy_perform() failed: %s\n",
-				curl_easy_strerror(result));
-		curl_easy_cleanup(curl);
+		if (result == CURLE_OK)
+		{
+			return true;
+		}
+		else
+		{
+			std::cout << "curl_easy_perform() failed: %s\n" << curl_easy_strerror(result);
+			return false;
+		}
 	}
-	else {
-		lock.unlock();
-	}
+	return false;
 }
 std::pair<size_t, double> ServerBackend::compareImgWithDatabase(const cv::Mat& feature)
 {
 	size_t index = 0;
-	double confidence = local_db.size() > 0 ? evaluator.match(feature, local_db.front().feature) : 0.0;
+	double confidence = local_db.size() > 0 ? evaluator.match(feature, local_db.front().feature, cv::FaceRecognizerSF::DisType::FR_COSINE) : 0.0;
 	for(size_t i = 1; i < local_db.size(); i++)
 	{
 		if(!local_db[i].registered)
 		{
-			const auto current_confidence = evaluator.match(feature, local_db[i].feature); 
+			const auto current_confidence = evaluator.match(feature, local_db[i].feature, cv::FaceRecognizerSF::DisType::FR_COSINE);
 			if(confidence < current_confidence)
 			{
 				confidence = current_confidence;
@@ -226,5 +236,10 @@ std::pair<size_t, double> ServerBackend::compareImgWithDatabase(const cv::Mat& f
 
 	}
 	return std::make_pair(index, confidence);
+}
+
+std::string ServerBackend::DataToString(const Data& data)
+{
+	return "\'" + data.name + "\', \'" + data.email + "\', \'" + data.file_path + "\'";
 }
 

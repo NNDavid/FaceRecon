@@ -19,7 +19,6 @@ int main()
 	CROW_ROUTE(app, "/submit")
 		.methods("GET"_method)
 	([](const crow::request& req, crow::response& res) {
-
 		serverbackend.reg(req, res);
 	});
 
