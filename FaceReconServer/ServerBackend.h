@@ -1,8 +1,8 @@
 #pragma once
 
+#include <curl/curl.h>
 #include "ThreadSafeFaceImageEvaluator.h"
 #include "Data.h"
-#include <curl/curl.h>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/bind.hpp>
@@ -21,7 +21,7 @@ public:
 	void enter(const crow::request& req, crow::response& res);
 private:
 	bool insertDatabaseData(const Data& data);
-	void updateDatabaseData(const size_t id);
+	bool updateDatabaseData(const size_t id);
 	void updateLocalDatabase(const crow::json::rvalue& response);
 	bool getDatabaseData(crow::json::rvalue& response);
 	static inline std::string DataToString(const Data& data);

@@ -2,13 +2,14 @@
 #include "utilities.h"
 #include <QVBoxLayout>
 #include <QTimer>
-#include <opencv2/imgproc.hpp>
 #include <QImage>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 #include <stdexcept>
 #include <algorithm>
+#include <iostream>
 
-
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx"), counter(0)
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QLabel(this)), evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx"), counter(0), curl(curl_easy_init())
 {
 	this->setCentralWidget(imageLabel);
 	try
@@ -26,12 +27,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), imageLabel(new QL
 	auto* refreshTimer = new QTimer(this);
 	connect(refreshTimer, SIGNAL(timeout()), this, SLOT(showCamera()));
 	refreshTimer->start(20);
-	curl = curl_easy_init();
-}
-
-MainWindow::~MainWindow()
-{
-	curl_easy_cleanup(curl);
 }
 
 void MainWindow::showCamera()
@@ -40,7 +35,7 @@ void MainWindow::showCamera()
 	{
 		cv::Mat image;
 		videoCapture.read(image);
-		//cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+		cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 		cv::Mat faces;
 		evaluator.findFaces(image, faces);
 		if (faces.rows == 0)
@@ -55,27 +50,27 @@ void MainWindow::showCamera()
 			evaluator.alignCrop(image, faces.row(0), cropped_img);
 			faceLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(cropped_img.data), cropped_img.cols, cropped_img.rows, cropped_img.step, QImage::Format_RGB888)));
 			statusLabel->setText("Face found!");
-			if (counter > 200)
+			if (counter > 100)
 			{
-				std::string readBuffer;
-				CURLcode result;
-				// Encode from base64 to mat
+				counter = 0;
+				//TODO send cropped_image to server
 				const auto base64Img = base64_utilities::mat2str(cropped_img);
 				std::string url = "http://localhost:18080/send?faceimg=" + base64Img;
-				if (curl) {
+				if (curl)
+				{
 					curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 					auto result = curl_easy_perform(curl);
 					if (result != CURLE_OK)
 					{
-						fprintf(stderr, "curl_easy_perform() failed: %s\n",
-							curl_easy_strerror(result));
+						std::cout << "curl_easy_perform() failed: " << curl_easy_strerror(result) << std::endl;
 						statusLabel->setText("Face is NOT getting sent!!");
 					}
-					else statusLabel->setText("Face is getting sent!!");
+					else std::cout << "Face sent!" << std::endl;
 				}
 				else {
+					std::cout << "CURL dead" << std::endl;
 				}
-				counter = 0;
+				statusLabel->setText("Face is getting sent!!");
 			}
 		}
 		else
@@ -85,7 +80,7 @@ void MainWindow::showCamera()
 		}
 		for (int i = 0; i < faces.rows; i++)
 		{
-			//cv::rectangle(image, cv::Rect2i(int(faces.at<float>(i, 0)), int(faces.at<float>(i, 1)), int(faces.at<float>(i, 2)), int(faces.at<float>(i, 3))), cv::Scalar(0, 255, 0), 2);
+			cv::rectangle(image, cv::Rect2i(int(faces.at<float>(i, 0)), int(faces.at<float>(i, 1)), int(faces.at<float>(i, 2)), int(faces.at<float>(i, 3))), cv::Scalar(0, 255, 0), 2);
 		}
 		imageLabel->setPixmap(QPixmap::fromImage(QImage(reinterpret_cast<uchar*>(image.data), image.cols, image.rows, image.step, QImage::Format_RGB888)));
 	}

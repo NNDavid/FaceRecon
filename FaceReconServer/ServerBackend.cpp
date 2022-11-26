@@ -4,14 +4,14 @@
 #include <chrono>
 #include <thread>
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
 	((std::string*)userp)->append((char*)contents, size * nmemb);
 	return size * nmemb;
 }
 
-ServerBackend::ServerBackend(): evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx")
+ServerBackend::ServerBackend(): evaluator("face_detection_yunet_2022mar.onnx", "face_recognition_sface_2021dec.onnx"), curl(nullptr)
 {
 
 }
@@ -31,7 +31,6 @@ void ServerBackend::init()
 void ServerBackend::reg(const crow::request& req, crow::response& res)
 {
 	std::string base64 = req.url_params.get("faceimg");
-
 	// Take out the unecessary part
 	base64 = base64.substr(base64.find_first_of(",") + 1);
 		
@@ -52,13 +51,14 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 	{
 		cv::Mat cropped_img;
 		evaluator.alignCrop(image, faces.row(0), cropped_img);
-		boost::upgrade_lock<boost::shared_mutex> db_lock(db_mutex);
 		cv::Mat feature;
+		boost::upgrade_lock<boost::shared_mutex> db_lock(db_mutex);
 		evaluator.evaluateFeature(cropped_img, feature);
+
 		const auto best_person = this->compareImgWithDatabase(feature);
 		if(best_person.second > 0.363)
 		{
-			res.write("You have already registered!");
+			res.write("You are " + local_db[best_person.first].name + "! You have already registered! Confidence: " + std::to_string(best_person.second));
 		}
 		else
 		{
@@ -71,7 +71,7 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 			const auto path = name_tmp + std::to_string(static_cast<int>(best_person.second * 100.0)) + ".jpg";
 		
 		   // Save the mat to the given folder
-			base64_utilities::createFolderandMatFileconst(cropped_img, path);
+			base64_utilities::createFolderandMatFile(cropped_img, path);
 	
 			
 
@@ -97,36 +97,41 @@ void ServerBackend::reg(const crow::request& req, crow::response& res)
 void ServerBackend::enter(const crow::request& req, crow::response& res)
 {
 	std::string base64 = req.url_params.get("faceimg");
+	std::replace(base64.begin(), base64.end(), ' ', '+');
 
-	// Take out the unecessary part
-	//base64 = base64.substr(base64.find_first_of(",") + 1);
-		
-	// Encode from base64 to mat
-	cv::Mat imgMat = base64_utilities::str2mat(base64);
+	auto imgMat = base64_utilities::str2mat(base64);
+	cv::cvtColor(imgMat, imgMat, cv::COLOR_BGR2RGB);
 	cv::Mat feature;
 	evaluator.evaluateFeature(imgMat, feature);
 
 	boost::upgrade_lock<boost::shared_mutex> db_lock(db_mutex);
-	const auto best_person = this->compareImgWithDatabase(imgMat);
+	const auto best_person = this->compareImgWithDatabase(feature);
 	if (best_person.second > 0.363)
 	{
-		if (local_db[best_person.second].registered)
+		if (local_db[best_person.first].registered)
 		{
-			res.write(" You are " + local_db[best_person.second].name + "! You have already entered this event!");
+			res.write(" You are " + local_db[best_person.first].name + "! You have already entered this event! Confidence: " + std::to_string(best_person.second));
 		}
 		else
 		{
 			boost::upgrade_to_unique_lock unique_db_lock(db_lock);
-			local_db[best_person.second].registered = true;
-			res.write(" You are " + local_db[best_person.second].name + "! You may enter!");
-			
-			updateDatabaseData(local_db[best_person.second].id);
+			const auto succesfull = updateDatabaseData(local_db[best_person.first].id);
+			if (succesfull)
+			{
+				local_db[best_person.first].registered = true;
+				res.write(" You are " + local_db[best_person.first].name + "! You may enter!");
+			}
+			else
+			{
+				res.write("There was error! Please ask staff for help!");
+			}
 		}
 	}
 	else
 	{
 		res.write("You are not registered!");
 	}
+	res.end();
 
 }
 
@@ -169,29 +174,44 @@ void ServerBackend::updateLocalDatabase(const crow::json::rvalue& response)
 	{
 		const auto data = items[i];
 		std::cout << "new_item  = " << data << std::endl;
-		local_db[i] = Data(data["id"].u(), std::string(data["name"].s()), std::string(data["email"].s()), std::string(data["pic"].s()), data["is_registered"].u() == 1);
-		cv::Mat image = cv::imread("FaceRecMatResults/" +  local_db[i].file_path);
-		evaluator.evaluateFeature(image, local_db[i].feature);
+		
+		std::cout << local_db[i].file_path << std::endl;
+		cv::Mat image = cv::imread("FaceRecMatResults/" + std::string(data["pic"].s()));
+		cv::Mat feature;
+		evaluator.evaluateFeature(image, feature);
+		local_db[i] = Data(data["id"].u(), std::string(data["name"].s()), std::string(data["email"].s()), std::string(data["pic"].s()), data["is_registered"].u() == 1, feature);
+	}
+
+	for (auto& data : local_db)
+	{
+		std::cout << data.name << " " << data.file_path << std::endl;
 	}
 }
 
-void ServerBackend::updateDatabaseData(const size_t id)
+bool ServerBackend::updateDatabaseData(const size_t id)
 {
 	std::unique_lock<std::mutex> lock(curl_mutex);
 	std::string readBuffer;
 	CURLcode result;
-	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=put&select=is_registered=0&where=id=" + std::to_string(id);
+	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=put&select=is_registered=1&where=id=" + std::to_string(id);
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		const auto result = curl_easy_perform(curl);
 		lock.unlock();
 		if (result != CURLE_OK)
-			fprintf(stderr, "curl_easy_perform() failed: %s\n",
-				curl_easy_strerror(result));
-		curl_easy_cleanup(curl);
+		{
+			std::cerr << "Could not update database!" << std::endl;
+			return false;
+		}
+		else
+		{
+			return true;
+		}
 	}
-	else {
-		lock.unlock();
+	else
+	{
+		std::cerr << "CURL does not exist!" << std::endl;
+		return false;
 	}
 	
 }
@@ -224,16 +244,13 @@ std::pair<size_t, double> ServerBackend::compareImgWithDatabase(const cv::Mat& f
 {
 	size_t index = 0;
 	double confidence = local_db.size() > 0 ? evaluator.match(feature, local_db.front().feature, cv::FaceRecognizerSF::DisType::FR_COSINE) : 0.0;
-	for(size_t i = 1; i < local_db.size(); i++)
+	for (size_t i = 1; i < local_db.size(); i++)
 	{
-		if(!local_db[i].registered)
+		const auto current_confidence = evaluator.match(feature, local_db[i].feature, cv::FaceRecognizerSF::DisType::FR_COSINE);
+		if (confidence < current_confidence)
 		{
-			const auto current_confidence = evaluator.match(feature, local_db[i].feature, cv::FaceRecognizerSF::DisType::FR_COSINE);
-			if(confidence < current_confidence)
-			{
-				confidence = current_confidence;
-				index  = i;
-			}
+			confidence = current_confidence;
+			index = i;
 		}
 
 	}

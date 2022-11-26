@@ -1,18 +1,16 @@
 #pragma once
 #include "FaceImageEvaluator.h"
+#include <curl/curl.h>
 #include <QMainWindow>
 #include <QLabel>
 #include <QStatusBar>
 #include <opencv2/videoio.hpp>
-#include <opencv2/objdetect.hpp>
-#include <curl/curl.h>
 
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 public:
 	explicit MainWindow(QWidget* parent = nullptr);
-	~MainWindow();
 private slots:
 	void showCamera();
 private:
