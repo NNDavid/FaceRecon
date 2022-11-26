@@ -5,12 +5,14 @@
 #include <QStatusBar>
 #include <opencv2/videoio.hpp>
 #include <opencv2/objdetect.hpp>
+#include <curl/curl.h>
 
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 public:
 	explicit MainWindow(QWidget* parent = nullptr);
+	~MainWindow();
 private slots:
 	void showCamera();
 private:
@@ -20,4 +22,5 @@ private:
 	cv::VideoCapture videoCapture;
 	FaceImageEvaluator evaluator;
 	size_t counter;
+	CURL* curl;
 };

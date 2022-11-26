@@ -99,22 +99,24 @@ void ServerBackend::enter(const crow::request& req, crow::response& res)
 	std::string base64 = req.url_params.get("faceimg");
 
 	// Take out the unecessary part
-	base64 = base64.substr(base64.find_first_of(",") + 1);
+	//base64 = base64.substr(base64.find_first_of(",") + 1);
 		
 	// Encode from base64 to mat
 	cv::Mat imgMat = base64_utilities::str2mat(base64);
+	cv::Mat feature;
+	evaluator.evaluateFeature(imgMat, feature);
 
 	boost::upgrade_lock<boost::shared_mutex> db_lock(db_mutex);
 	const auto best_person = this->compareImgWithDatabase(imgMat);
-	if (best_person.second > 0.8)
+	if (best_person.second > 0.363)
 	{
-		boost::upgrade_to_unique_lock unique_db_lock(db_lock);
 		if (local_db[best_person.second].registered)
 		{
 			res.write(" You are " + local_db[best_person.second].name + "! You have already entered this event!");
 		}
 		else
 		{
+			boost::upgrade_to_unique_lock unique_db_lock(db_lock);
 			local_db[best_person.second].registered = true;
 			res.write(" You are " + local_db[best_person.second].name + "! You may enter!");
 			
