@@ -58,6 +58,7 @@ void MainWindow::showCamera()
 				std::string url = "http://localhost:18080/send?faceimg=" + base64Img;
 				if (curl)
 				{
+					curl_easy_reset(curl);
 					curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 					auto result = curl_easy_perform(curl);
 					if (result != CURLE_OK)

@@ -137,9 +137,9 @@ void ServerBackend::enter(const crow::request& req, crow::response& res)
 
 bool ServerBackend::getDatabaseData(crow::json::rvalue& response)
 {
-	curl = curl_easy_init();
 	if (curl)
 		{
+		curl_easy_reset(curl);
 			CURLcode res;
 			std::string readBuffer;
 			curl_easy_setopt(curl, CURLOPT_URL, "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=get&select=id,name,email,pic,is_registered");
@@ -195,6 +195,7 @@ bool ServerBackend::updateDatabaseData(const size_t id)
 	CURLcode result;
 	std::string url = "https://www.eventshare.hu/v0.2/src/api/apiController.php?query_table=face_rec_event&query_type=put&select=is_registered=1&where=id=" + std::to_string(id);
 	if (curl) {
+		curl_easy_reset(curl);
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		const auto result = curl_easy_perform(curl);
 		lock.unlock();
@@ -225,6 +226,7 @@ bool ServerBackend::insertDatabaseData(const Data& data)
 	url.erase(std::remove(url.begin(), url.end(),' '), url.end());
 	curl = curl_easy_init();
 	if (curl) {
+		curl_easy_reset(curl);
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		result = curl_easy_perform(curl);
 		lock.unlock();
