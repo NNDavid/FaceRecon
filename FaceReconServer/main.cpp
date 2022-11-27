@@ -38,7 +38,7 @@ int main()
 
 	CROW_ROUTE(app, "/")([] {
 		CROW_LOG_INFO << std::filesystem::current_path() << "\n\n";
-		return crow::mustache::load("index.php").render();
+		return crow::mustache::load("index.html").render();
 	});
 
 	app.port(18080)
