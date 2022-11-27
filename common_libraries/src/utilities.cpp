@@ -10,7 +10,7 @@
  	return (std::isalnum(c) || (c == '+') || (c == '/'));
  }
 
- void createFolderandMatFile(cv::Mat& imgMat, std::string& path)
+ void base64_utilities::createFolderandMatFile(const cv::Mat& imgMat, const std::string& path)
  {
 	 // Testing the folder and file creation
 	 auto ret2 = std::filesystem::create_directories("FaceRecMatResults");
@@ -22,7 +22,7 @@
 	 }
 
 	 // Creating File
-	 cv::imwrite("FaceRecMatResults/" + path + ".bmp", imgMat);
+	 cv::imwrite("FaceRecMatResults/" + path, imgMat);
  }
  
  std::string base64_utilities::base64_decode(const std::string& encoded_string)

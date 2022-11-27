@@ -26,8 +26,15 @@ int main()
 		.methods("GET"_method)
 	([](const crow::request& req, crow::response& res) {
 		// Forward to the server backend
-		serverbackend.enter(req, res);
+		serverbackend.send(req, res);
 	});
+
+	CROW_ROUTE(app, "/enter")
+		.methods("GET"_method)
+		([](const crow::request& req, crow::response& res) {
+		// Forward to the server backend
+		serverbackend.enter(req, res);
+			});
 
 	CROW_ROUTE(app, "/")([] {
 		CROW_LOG_INFO << std::filesystem::current_path() << "\n\n";

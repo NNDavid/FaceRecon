@@ -6,4 +6,4 @@ find_package(OpenCV REQUIRED)
 find_package(CURL)
 
 add_executable(${PROJECT_NAME} MainWindow.h MainWindow.cpp main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets ${OpenCV_LIBS} common_libraries CURL::libcurl)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets ${OpenCV_LIBS} common_libraries CURL::libcurl Crow)
