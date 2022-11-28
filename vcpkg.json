@@ -5,7 +5,9 @@
         "asio",
         "openssl",
         "zlib",
-        "opencv",
-        "boost"
+        "opencv4",
+        "boost",
+        "cpprestsdk",
+        "curl"
     ]
 }

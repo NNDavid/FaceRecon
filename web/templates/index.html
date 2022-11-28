@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<head>
+<title>FaceReconRegister</title>
+<style>
+#display-image{
+  width: 400px;
+  height: 200px;
+  border: 1px solid black;
+  background-position: center;
+  background-size: cover;
+  margin-left: 2%;
+}
+
+body {font-family: Arial, Helvetica, sans-serif;  background-image: url("facerecon.png"); background-position: 30%; color: white;  background-size: 1500px 1500px;}
+form {border: 3px solid #f1f1f1; width: 45%; margin:28%; background-color: black;}
+h2 {
+	text-align:center;
+}
+
+input {
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+button {
+  background-color: #0080ff	;
+  color: white;
+  padding: 14px 20px;
+  margin: 8px 0;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+.cancelbtn {
+  width: auto;
+  padding: 10px 18px;
+  background-color: #f44336;
+}
+
+.imgcontainer {
+  text-align: center;
+  margin: 24px 0 12px 0;
+}
+
+img.avatar {
+  width: 40%;
+  border-radius: 50%;
+}
+
+.container {
+  padding: 16px;
+}
+
+span.psw {
+  float: right;
+  padding-top: 16px;
+}
+
+label {
+	padding: 5%;
+}
+
+</style>
+</head>
+<html>
+<body>
+
+
+<form method="GET" action="/submit">
+<h2>FaceReconRegister</h2>
+  <label for="uname"><b>Name</b></label>
+    <input type="text" name="name" value="" id="name" placeholder="Give your name" />
+ <label for="uname"><b>Email</b></label>
+    <input type="text" name="email" placeholder="Give your email" />
+ <label for="uname"><b>Your image</b></label>
+    <input type="file" name="img" id="img" placeholder="Give your image" />
+    <input type="hidden" name="faceimg" id="faceimg" />
+	 <button name="submit" value="Submit" onClick="formSub();"> 
+    Submit
+    </button>
+	 <div id="display-image"></div>
+  </form>
+<script>
+    
+    var image_source = "";
+
+    function formSub(){
+        let image_input = document.querySelector("#faceimg");
+        image_input.value = image_source;
+    }
+
+   let image_input = document.querySelector("#img");
+    console.log(image_input);
+    image_input.addEventListener("change", function() {
+     let reader = new FileReader();
+    reader.addEventListener("load", () => {
+    let uploaded_image = reader.result;
+    console.log(uploaded_image);
+    image_source = uploaded_image;
+    document.querySelector("#display-image").style.backgroundImage = `url(${uploaded_image})`;
+  });
+  reader.readAsDataURL(this.files[0]);
+});
+</script>
+</body>
+</html>
