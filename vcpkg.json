@@ -5,10 +5,8 @@
         "asio",
         "openssl",
         "zlib",
-        "cuda",
-        "cudnn",
         "opencv4",
-        "boost"
+        "boost",
         "cpprestsdk",
         "curl"
     ]
