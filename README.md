@@ -1,5 +1,8 @@
 # FaceRecon
-
+## FaceReconServer
+A webservice dedicated to handle registration with face-detection and face-recognition.
+## FaceReconDesktop
+A desktop application dedicated to facilitate entry to an event using face-detection and face-recognition
 ## BUILD
 ### REQUIREMENTS
 * MSVC compiler
